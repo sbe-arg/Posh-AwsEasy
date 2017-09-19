@@ -125,7 +125,7 @@ function New-EasyAwsStack {
       # configure as many ingress rules u need using $ip1,$ip2,etc add them in Grant-EC2SecurityGroupIngress @()
       $ip1_elb  = new-object Amazon.EC2.Model.IpPermission
       $ip1_elb.IpProtocol = "tcp"
-      $ip1_elb.FromPort = 80
+      $ip1_elb.FromPort = $worldport
       $ip1_elb.ToPort = $instanceport
       $ip1_elb.IpRanges.Add("0.0.0.0/0")
 
