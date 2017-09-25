@@ -20,7 +20,7 @@ function Invoke-AWSTagEasy {
     elseif($tagkey -and $tagvalue){
       $cando = "allowed"
       Write-Warning "Using key $tagkey value $tagvalue..."
-      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values=@("$tagvalue") } -Region $region
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values="$tagvalue" } -Region $region
     }
     else{
       $cando = "not-allowed"
@@ -31,7 +31,7 @@ function Invoke-AWSTagEasy {
     # ADD/UPDATE tags
     if($addtag -and $cando -eq "allowed"){
       foreach($r in $resources){
-        $r.ResourceARN | Add-RGTResourceTag -Tag @{ Key="$tagkey"; Values=@("$tagvalue") } -Force -Region $region -Verbose
+        $r.ResourceARN | Add-RGTResourceTag -Tag @{ Key="$tagkey"; Values="$tagvalue" } -Force -Region $region -Verbose
         Start-Sleep -Seconds 1
       }
     }
@@ -44,7 +44,7 @@ function Invoke-AWSTagEasy {
     if($removetag -and $cando -eq "allowed"){
       foreach($r in $resources){
         Write-Warning "Removing tag:$tagkey on $(($r).ResourceARN)"
-        $r.ResourceARN | Remove-RGTResourceTag -TagKey @{ Key="$tagkey" } -Force -Region $region
+        $r.ResourceARN | Remove-RGTResourceTag -TagKey $tagkey -Force -Region $region -Verbose
         Start-Sleep -Seconds 1
       }
     }
@@ -53,9 +53,11 @@ function Invoke-AWSTagEasy {
       break
     }
 
-    $tagged = Get-RGTTagValue -Key $tagkey -Region $region
-    Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey.value"
-    $tagged
+    if($tagkey){
+      $tagged = Get-RGTTagValue -Key $tagkey -Region $region
+      Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey.value"
+      $tagged
+    }
     if($showresources){
       $resources.ResourceARN
     }
