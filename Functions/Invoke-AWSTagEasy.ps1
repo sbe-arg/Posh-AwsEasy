@@ -19,49 +19,69 @@ function Invoke-AWSTagEasy {
     [switch]$addtag,
     [switch]$updatetag,
     [switch]$removetag,
-    [switch]$showresources
+    [switch]$showresources,
+    [switch]$showmissingresources,
+    [string]$arn
   )
 
   process{
     # GET resources
+    $totalresources = Get-RGTResource -Region $region
     if(($addtag -and $updatetag) -or ($removetag -and $updatetag) -or ($removetag -and $addtag) ){
       Write-Warning "You can't more than one statement add/remove/update."
       break
     }
-    elseif($tagkey -and -not $tagvalue){
+    elseif(-not $tagvalue -and $tagkey){
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "not-allowed"
       Write-Warning "Resources using key:$tagkey..."
       $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region
+      Write-Warning "Found $(($totalresources).count - ($resources).count) resources are missing tag:$tagkey"
+      Write-Warning "Show resources missing tag:$tagkey using -showmissingresources."
+      Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
+      $tagged
+      if($showmissingresources){
+        $totalresources | Get-AwsEasyTags | select ResourceARN,$tagkey | sort -descending $tagkey
+      }
     }
     elseif($tagkey -and $tagvalue -and $updatetag){
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Resources using key:$tagkey..."
       $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region
+      Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
+      $tagged
     }
     elseif($tagkey -and $tagvalue -and $addtag){
+      # required for add
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Getting resources..."
       $resources = Get-RGTResource -ResourceType $resourcetype -Region $region
-
+      Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
+      $tagged
     }
-    elseif($tagkey -and $tagvalue -and -not $addtag){
+    elseif(-not $addtag -and $tagkey -and $tagvalue){
+      # required for delete/update
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Resources using key:$tagkey value:$tagvalue..."
       $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values="$tagvalue" } -Region $region
+      Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
+      $tagged
     }
     else{
-      $tagged = Get-RGTTagValue -Region $region
       $cando = "not-allowed"
       Write-Warning "Getting resources..."
       $resources = Get-RGTResource -Region $region
+      Write-Warning "Total resources found $(($resources).count)"
+      $tagged
     }
 
-    Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey.value"
-    $tagged
+    if($arn){
+      $resources.ResourceARN = $arn
+      Write-Warning "Arn set to $($resources.ResourceARN)"
+    }
 
     # UPDATE tag
     if($updatetag -and $cando -eq "allowed"){

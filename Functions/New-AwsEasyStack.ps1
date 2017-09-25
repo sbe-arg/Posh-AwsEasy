@@ -241,24 +241,6 @@ function New-EasyAwsStack {
 
 <#
 # TODO Cleanup?...
-  function Get-EC2TagsMagic {
-      param(
-          [Parameter(ValueFromPipeline=$true)][PsObject[]]$InputObject,
-          [string[]]$ExpandProperty=@("Tags")
-      )
-      process {
-          foreach ($o in $InputObject) {
-              foreach ($e in $ExpandProperty) {
-                  if ($o | Get-Member $e) {
-                      foreach($t in $o.$e) {
-                          $o | Add-Member -MemberType NoteProperty -Name $t.Key -Value $t.Value -ErrorAction SilentlyContinue -Force
-                      }
-                  }
-                  $o
-              }
-          }
-      }
-  }
 
   Get-EC2Instance -Region $region | Get-EC2TagsMagic | where {$_.serverclass -like $serverclass} -Verbose # TODO add stop
   Get-EC2SecurityGroup -Region $region | where {$_.GroupName -like "*$serverclass*" | Remove-EC2SecurityGroup -Region $region}

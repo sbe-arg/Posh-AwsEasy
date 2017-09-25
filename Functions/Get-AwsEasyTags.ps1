@@ -1,4 +1,4 @@
-﻿function Get-EC2Tags {
+﻿function Get-AwsEasyTags {
     param(
         [Parameter(ValueFromPipeline=$true)][PsObject[]]$InputObject,
         [string[]]$ExpandProperty=@("Tags")
