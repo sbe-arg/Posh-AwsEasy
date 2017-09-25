@@ -168,9 +168,9 @@ function New-EasyAwsStack {
       $elb_tags = "n/a"
       $httpListener = New-Object Amazon.ElasticLoadBalancing.Model.Listener
       $httpListener.Protocol = "http"
-      $httpListener.LoadBalancerPort = 80
+      $httpListener.LoadBalancerPort = $worldport
       $httpListener.InstanceProtocol = "http"
-      $httpListener.InstancePort = 8080
+      $httpListener.InstancePort = $instanceport
       New-ELBLoadBalancer -LoadBalancerName $elb_name -AvailabilityZone @( $($availability_zones).ZoneName ) -Subnet $subnet.AvailabilityZone -SecurityGroup $sec_group_elb.GroupId -Listener $httpListener -Region $region
       $elb_data = Get-ELBLoadBalancer -LoadBalancerName $elb_name
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $elb_name created with AZ $($subnet.AvailabilityZone)." | out-file -append -encoding ascii $logfile

@@ -11,22 +11,27 @@ function Invoke-AWSTagEasy {
   )
 
   process{
-    if($tagkey -eq "Name"){
-      Write-Warning "Don't play with fire. I cannot change Tag.Name as is the default aws tag."
-      break
-    }
     # GET resources
     if($tagkey -and -not $tagvalue){
+      $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "not-allowed"
-      Write-Warning "Using key $tagkey..."
+      Write-Warning "Using key:$tagkey..."
       $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region
     }
-    elseif($tagkey -and $tagvalue){
+    elseif($tagkey -and $tagvalue -and $addtag){
+      $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
-      Write-Warning "Using key $tagkey value $tagvalue..."
+      Write-Warning "Using key:$tagkey..."
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region
+    }
+    elseif($tagkey -and $tagvalue -and -not $addtag){
+      $tagged = Get-RGTTagValue -Key $tagkey -Region $region
+      $cando = "allowed"
+      Write-Warning "Using key:$tagkey value:$tagvalue..."
       $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values="$tagvalue" } -Region $region
     }
     else{
+      $tagged = Get-RGTTagValue -Region $region
       $cando = "not-allowed"
       Write-Warning "Getting all resources..."
       $resources = Get-RGTResource -Region $region
@@ -34,8 +39,13 @@ function Invoke-AWSTagEasy {
 
     # ADD/UPDATE tags
     if($addtag -and $cando -eq "allowed"){
+      if($tagkey -eq "Name"){
+        Write-Warning "Don't play with fire. You cannot change Tag.Name as is the default aws tag."
+        break
+      }
       foreach($r in $resources){
-        $r.ResourceARN | Add-RGTResourceTag -Tag @{ Key="$tagkey"; Values="$tagvalue" } -Force -Region $region -Verbose
+        Write-Warning "Adding/Editting tag:$tagkey value:$tagvalue on $(($r).ResourceARN)"
+        $r.ResourceARN | Add-RGTResourceTag -Tag @{ "$tagkey"="$tagvalue" } -Force -Region $region -Verbose
         Start-Sleep -Seconds 1
       }
     }
@@ -46,6 +56,10 @@ function Invoke-AWSTagEasy {
 
     # REMOVE tags
     if($removetag -and $cando -eq "allowed"){
+      if($tagkey -eq "Name"){
+        Write-Warning "Don't play with fire. You cannot change Tag.Name as is the default aws tag."
+        break
+      }
       foreach($r in $resources){
         Write-Warning "Removing tag:$tagkey on $(($r).ResourceARN)"
         $r.ResourceARN | Remove-RGTResourceTag -TagKey $tagkey -Force -Region $region -Verbose
@@ -57,11 +71,8 @@ function Invoke-AWSTagEasy {
       break
     }
 
-    if($tagkey){
-      $tagged = Get-RGTTagValue -Key $tagkey -Region $region
-      Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey.value"
-      $tagged
-    }
+    Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey.value"
+    $tagged
     if($showresources){
       $resources.ResourceARN
     }
