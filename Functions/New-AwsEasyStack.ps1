@@ -28,9 +28,14 @@ function New-EasyAwsStack {
     [Parameter(Mandatory=$true)]
     [string]$vpcfilter, # use vpc name or vpcid
 
-    [string]$instanceport = "8080", # port that elb will redirect and allow in ec2 from
+    [string]$instanceport = "80", # port that elb will redirect and allow in ec2 from
 
     [string]$worldport = "80", # any port for elb external access
+
+    [Parameter(Mandatory=$true)]
+    [string]$tagkey,
+    [Parameter(Mandatory=$true)]
+    [string]$tagvalue,
 
     [string]$userdata,
 
@@ -165,7 +170,6 @@ function New-EasyAwsStack {
 
     # ELB
       $elb_name = "elb-" + $serverclass
-      $elb_tags = "n/a"
       $httpListener = New-Object Amazon.ElasticLoadBalancing.Model.Listener
       $httpListener.Protocol = "http"
       $httpListener.LoadBalancerPort = $worldport
@@ -190,8 +194,11 @@ function New-EasyAwsStack {
       $asg_tag2 = New-Object Amazon.AutoScaling.Model.Tag
       $asg_tag2.Key = "created-by"
       $asg_tag2.Value = "powershell.$env:USERNAME.$env:COMPUTERNAME"
+      $asg_tag3 = New-Object Amazon.AutoScaling.Model.Tag
+      $asg_tag3.Key = $tagkey
+      $asg_tag3.Value =$tagvalue
 
-      $asg_tags = ($asg_tag1,$asg_tag2)
+      $asg_tags = ($asg_tag1,$asg_tag2,$asg_tag3)
       $asg_name = "asg-" + $serverclass
       New-ASAutoScalingGroup -AutoScalingGroupName $asg_name -LoadBalancerName $elb_name -LaunchConfigurationName $lconfig_name -AvailabilityZone @( $($availability_zones).ZoneName ) -Tag @($asg_tags) -MinSize 1 -MaxSize 1 -Region $region
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $asg_name created." | out-file -append -encoding ascii $logfile
