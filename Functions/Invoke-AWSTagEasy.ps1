@@ -11,6 +11,10 @@ function Invoke-AWSTagEasy {
   )
 
   process{
+    if($tagkey -eq "Name"){
+      Write-Warning "Don't play with fire. I cannot change Tag.Name as is the default aws tag."
+      break
+    }
     # GET resources
     if($tagkey -and -not $tagvalue){
       $cando = "not-allowed"
