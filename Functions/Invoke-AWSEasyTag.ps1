@@ -6,12 +6,12 @@
 .DESCRIPTION
     Tagger for all resources no filter so be carefull.
 .EXAMPLE
-    Invoke-AWSTagEasy -tagkey mytag -region $region -tagvalue myvalue -addtag
-    Invoke-AWSTagEasy -tagkey mytag -region $region -removetag
-    Invoke-AWSTagEasy -tagkey mytag -region $region -tagvalue myvalue -updatetag
+    Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -addtag
+    Invoke-AwsEasyTag -tagkey mytag -region $region -removetag
+    Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -updatetag
 #>
 
-function Invoke-AWSTagEasy {
+function Invoke-AwsEasyTag {
   param(
     [string]$region = (Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName),
     [string]$tagkey,
@@ -48,7 +48,7 @@ function Invoke-AWSTagEasy {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Resources using key:$tagkey..."
-      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTags
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
@@ -57,7 +57,7 @@ function Invoke-AWSTagEasy {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Getting resources..."
-      $resources = Get-RGTResource -ResourceType $resourcetype -Region $region
+      $resources = Get-RGTResource -ResourceType $resourcetype -Region $region | Get-AwsEasyTags
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
@@ -66,14 +66,14 @@ function Invoke-AWSTagEasy {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Resources using key:$tagkey value:$tagvalue..."
-      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values="$tagvalue" } -Region $region
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values="$tagvalue" } -Region $region | Get-AwsEasyTags
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
     else{
       $cando = "not-allowed"
       Write-Warning "Getting resources..."
-      $resources = Get-RGTResource -Region $region
+      $resources = Get-RGTResource -Region $region | Get-AwsEasyTags
       Write-Warning "Total resources found $(($resources).count)"
       $tagged
     }

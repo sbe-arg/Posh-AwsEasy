@@ -1,5 +1,5 @@
 # create full stack from single command
-# NOTES: atm is for port 80 ingress (world) to server instance port XXXXX... no 443 yet
+# NOTES: atm is for port 80 ingress (world) to server instance port XXXXX... no 443 yet due cert restictions
 
 <#
 
@@ -31,6 +31,8 @@ function New-EasyAwsStack {
     [string]$instanceport = "80", # port that elb will redirect and allow in ec2 from
 
     [string]$worldport = "80", # any port for elb external access
+
+    [string[]]$subnetsids, # if you know them use them
 
     [Parameter(Mandatory=$true)]
     [string]$tagkey,
@@ -104,9 +106,23 @@ function New-EasyAwsStack {
 
     # IAM
       $iamrole = "iam-role-" + $serverclass # required by launch config
-      $iam_doco = '"Principal": { "Service": "ec2.amazonaws.com" }'
-      New-IAMRole -RoleName $iamrole -Description $serverclass -AssumeRolePolicyDocument $iam_doco -Region $region
+      $iam_doco = '{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}'
+
+      $iamprofilerolename = "iam-profile-" + $serverclass
       $iampolicyname = "iam-policy-" + $serverclass
+      $iamiam = New-IAMRole -RoleName $iamrole -Description $serverclass -AssumeRolePolicyDocument $iam_doco -Region $region
+      $iamiamiam = New-IAMInstanceProfile -InstanceProfileName $iamprofilerolename -Force -Region $region
       $iampolicy = Get-IAMAttachedRolePolicies -RoleName $iamrole -Region $region | where {$_.PolicyName -eq $iampolicyname}
       if($null -eq $iampolicy){
         # create
@@ -166,7 +182,20 @@ function New-EasyAwsStack {
     Start-Sleep -s 5
 
     # SUBNET
-      $subnet = Get-EC2Subnet -Region $region | where {$_.VpcId -like $vpc.VpcId -and $_.DefaultForAz -eq 'True'}
+      if($subnetsids){
+        $subnetid = @()
+        foreach($sub in $subnetsids){
+          $subnet = Get-EC2Subnet -Region $region | where {$_.VpcId -like $vpc.VpcId -and $_.SubnetId -like $sub}
+          $subnid = $subnet.SubnetId
+          $subnetid += $subnid.tostring()
+        }
+        $subnetid
+      }
+      else{
+        $subnet = Get-EC2Subnet -Region $region | where {$_.VpcId -like $vpc.VpcId}
+        $subnetid = $subnet.SubnetId
+        $subnetid
+      }
 
     # ELB
       $elb_name = "elb-" + $serverclass
@@ -175,19 +204,42 @@ function New-EasyAwsStack {
       $httpListener.LoadBalancerPort = $worldport
       $httpListener.InstanceProtocol = "http"
       $httpListener.InstancePort = $instanceport
-      New-ELBLoadBalancer -LoadBalancerName $elb_name -AvailabilityZone @( $($availability_zones).ZoneName ) -Subnet $subnet.AvailabilityZone -SecurityGroup $sec_group_elb.GroupId -Listener $httpListener -Region $region
-      $elb_data = Get-ELBLoadBalancer -LoadBalancerName $elb_name
+      try{
+        New-ELBLoadBalancer -LoadBalancerName $elb_name -SecurityGroup $sec_group_elb.GroupId -Subnet @( $subnetid ) -Listener $httpListener -Region $region
+      }
+      catch{
+        New-ELBLoadBalancer -LoadBalancerName $elb_name -SecurityGroup $sec_group_elb.GroupId -Subnet ($subnetid | select -Last 1)  -Listener $httpListener -Region $region
+      }
+      $elb_data = Get-ELBLoadBalancer -LoadBalancerName $elb_name -Region $region
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $elb_name created with AZ $($subnet.AvailabilityZone)." | out-file -append -encoding ascii $logfile
 
-    Start-Sleep -s 10
+      Start-Sleep -s 10
 
     # LAUNCH CONFIGURATION
       $lconfig_name = "lconfig-" + $serverclass
       $lconfig_instance_type = $instancetype
-      New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $userdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -IamInstanceProfile $iamrole -InstanceMonitoring_Enabled $true -Region $region
-      Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created." | out-file -append -encoding ascii $logfile
+      # userdata required base64 encoding
+      $Bytes = [System.Text.Encoding]::ascii.GetBytes($userdata)
+      $EncodedUserdata =[Convert]::ToBase64String($Bytes)
+      <#
+        $DecodeUserData = [System.Convert]::FromBase64String($EncodedUserdata)
+        [System.Text.Encoding]::ascii.GetString($DecodeUserData)
+        $DecodeUserData
+      #>
+
+      try{
+        New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $EncodedUserdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -InstanceMonitoring_Enabled $true -IamInstanceProfile $iamiamiam.Arn -Force -Region $region
+        Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created. With instance profile $($iamiamiam.Arn)" | out-file -append -encoding ascii $logfile
+      }
+      catch{
+        New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $EncodedUserdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -InstanceMonitoring_Enabled $true -Force -Region $region
+        Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created. Without instance profile. It means you cannot access other AWS services from ec2 iam policies." | out-file -append -encoding ascii $logfile
+      }
 
     # ASG
+      $asg_tag0 = New-Object Amazon.AutoScaling.Model.Tag
+      $asg_tag0.Key = "Name"
+      $asg_tag0.Value = "_" + "$serverclass"
       $asg_tag1 = New-Object Amazon.AutoScaling.Model.Tag
       $asg_tag1.Key = "serverclass"
       $asg_tag1.Value = "$serverclass"
@@ -198,11 +250,16 @@ function New-EasyAwsStack {
       $asg_tag3.Key = $tagkey
       $asg_tag3.Value =$tagvalue
 
-      $asg_tags = ($asg_tag1,$asg_tag2,$asg_tag3)
+      $asg_tags = ($asg_tag0,$asg_tag1,$asg_tag2,$asg_tag3)
       $asg_name = "asg-" + $serverclass
-      New-ASAutoScalingGroup -AutoScalingGroupName $asg_name -LoadBalancerName $elb_name -LaunchConfigurationName $lconfig_name -AvailabilityZone @( $($availability_zones).ZoneName ) -Tag @($asg_tags) -MinSize 1 -MaxSize 1 -Region $region
+      $asgsubnets = $subnetid -join ","
+      $asgsubnets
+      New-ASAutoScalingGroup -AutoScalingGroupName $asg_name -LoadBalancerName $elb_name -LaunchConfigurationName $lconfig_name -VPCZoneIdentifier $asgsubnets -Tag @($asg_tags) -MinSize 1 -MaxSize 1 -Region $region
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $asg_name created." | out-file -append -encoding ascii $logfile
       $asg = Get-ASAutoScalingGroup -AutoScalingGroupName $asg_name -Region $region
+
+      Start-Sleep -s 10
+
       if($asg){
         Update-ASAutoScalingGroup -AutoScalingGroupName $asg.Name -MaxSize 1 -MinSize 1 -HealthCheckType EC2 -HealthCheckGracePeriod 30 -Region $region
         Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $asg_name updated sizes and healthcheck." | out-file -append -encoding ascii $logfile
@@ -211,7 +268,7 @@ function New-EasyAwsStack {
         Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) ERROR $asg_name not found." | out-file -append -encoding ascii $logfile
       }
 
-    sleep 10
+      Start-Sleep -s 10
 
     # R53
     if($url -and $hostedzonename){
@@ -238,11 +295,3 @@ function New-EasyAwsStack {
     Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) Finished." | out-file -append -encoding ascii $logfile
   } # close process
 } # close function
-
-<#
-# TODO Cleanup?...
-
-  Get-EC2Instance -Region $region | Get-EC2TagsMagic | where {$_.serverclass -like $serverclass} -Verbose # TODO add stop
-  Get-EC2SecurityGroup -Region $region | where {$_.GroupName -like "*$serverclass*" | Remove-EC2SecurityGroup -Region $region}
-
-#>
