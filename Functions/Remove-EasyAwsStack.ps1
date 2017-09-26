@@ -15,17 +15,14 @@ function Remove-EasyAwsStack {
       Remove-IAMRole -RoleName iam-role-$serverclass -Force -Region $region
     #instance profile
       Remove-IAMInstanceProfile -InstanceProfileName iam-profile-$serverclass -PassThru -Force -Region $region
-    start-sleep -s 10
-    #ec2
-      Get-EC2Instance -Region $region | select -ExpandProperty instances | Get-AwsEasyTags | where {$_.serverclass -like $serverclass} | Remove-EC2Instance -Force -Region $region
-    start-sleep -s 20
     #asg
+      Update-ASAutoScalingGroup -AutoScalingGroupName asg-$serverclass -MaxSize 0 -MinSize 0 -DesiredCapacity 0 -Force -Region $region
+      start-sleep -s 20
       Remove-ASAutoScalingGroup -AutoScalingGroupName asg-$serverclass -PassThru -Force -Region $region
-    start-sleep -s 10
     #launch config
-      Remove-ASLaunchConfiguration -LaunchConfigurationName lconfig-$serverclass -PassThru -Region $region
-    start-sleep -s 20
+      Remove-ASLaunchConfiguration -LaunchConfigurationName lconfig-$serverclass -PassThru -Force -Region $region
     #securitygroups
+      start-sleep -s 20
       Get-EC2SecurityGroup -Region $region | where {$_.GroupName -like "*$serverclass"} | Remove-EC2SecurityGroup -PassThru -Force -Region $region
   } # close process
 } # close function
