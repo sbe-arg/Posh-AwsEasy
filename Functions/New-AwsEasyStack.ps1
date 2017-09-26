@@ -41,6 +41,9 @@ function New-EasyAwsStack {
 
     [string]$userdata,
 
+    [Parameter(Mandatory=$true)]
+    [string]$region,
+
     [string]$policyjson
   )
   process{
@@ -55,9 +58,9 @@ function New-EasyAwsStack {
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) Started process for stack $serverclass." | out-file -append -encoding ascii $logfile
 
     # REGION
-      $region = Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName
-      if($null -eq $region){
-        $region = Read-Host "Enter Region"
+      $getregion = Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName
+      if($null -ne $getregion){
+        $region = $getregion
       }
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) You are in region $region." | out-file -append -encoding ascii $logfile
 
@@ -93,11 +96,14 @@ function New-EasyAwsStack {
       Write-Warning "AMI set to $ami"
       Write-Warning "Instance Type set to $instancetype"
       if($url -and $hostedzonename){
-        Write-Warning "DnsNameset to $url to be added to $hostedzonename zone"
+        Write-Warning "DnsNameset to $url to be added to $hostedzonename zone."
       }
-      $continue = Read-Host "Continue? [y/n]"
-      if($continue -ne 'y'){
-        break
+      # ask user to confirm config if running from a non aws host
+      if($null -eq $getregion){
+        $continue = Read-Host "Continue? [y/n]"
+        if($continue -ne 'y'){
+          break
+        }
       }
 
     # AMI
@@ -123,6 +129,7 @@ function New-EasyAwsStack {
       $iampolicyname = "iam-policy-" + $serverclass
       $iamiam = New-IAMRole -RoleName $iamrole -Description $serverclass -AssumeRolePolicyDocument $iam_doco -Region $region
       $iamiamiam = New-IAMInstanceProfile -InstanceProfileName $iamprofilerolename -Force -Region $region
+      Add-IAMRoleToInstanceProfile -RoleName $iamrole -InstanceProfileName $iamprofilerolename -PassThru -Force -Region $region
       $iampolicy = Get-IAMAttachedRolePolicies -RoleName $iamrole -Region $region | where {$_.PolicyName -eq $iampolicyname}
       if($null -eq $iampolicy){
         # create
@@ -226,15 +233,8 @@ function New-EasyAwsStack {
         [System.Text.Encoding]::ascii.GetString($DecodeUserData)
         $DecodeUserData
       #>
-
-      try{
-        New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $EncodedUserdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -InstanceMonitoring_Enabled $true -IamInstanceProfile $iamiamiam.Arn -Force -Region $region
-        Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created. With instance profile $($iamiamiam.Arn)" | out-file -append -encoding ascii $logfile
-      }
-      catch{
-        New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $EncodedUserdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -InstanceMonitoring_Enabled $true -Force -Region $region
-        Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created. Without instance profile. It means you cannot access other AWS services from ec2 iam policies." | out-file -append -encoding ascii $logfile
-      }
+      New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $EncodedUserdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -InstanceMonitoring_Enabled $true -IamInstanceProfile $iamiamiam.Arn -Force -Region $region
+      Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created. With instance profile $($iamiamiam.Arn)" | out-file -append -encoding ascii $logfile
 
     # ASG
       $asg_tag0 = New-Object Amazon.AutoScaling.Model.Tag
@@ -258,10 +258,10 @@ function New-EasyAwsStack {
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $asg_name created." | out-file -append -encoding ascii $logfile
       $asg = Get-ASAutoScalingGroup -AutoScalingGroupName $asg_name -Region $region
 
-      Start-Sleep -s 10
+      Start-Sleep -s 45
 
       if($asg){
-        Update-ASAutoScalingGroup -AutoScalingGroupName $asg.Name -MaxSize 1 -MinSize 1 -HealthCheckType EC2 -HealthCheckGracePeriod 30 -Region $region
+        Update-ASAutoScalingGroup -AutoScalingGroupName $asg_name -MaxSize 1 -MinSize 1 -HealthCheckType EC2 -HealthCheckGracePeriod 30 -Region $region
         Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $asg_name updated sizes and healthcheck." | out-file -append -encoding ascii $logfile
       }
       else{

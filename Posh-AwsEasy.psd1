@@ -10,7 +10,7 @@
 RootModule = 'Posh-AwsEasy.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.9.0'
+ModuleVersion = '0.0.10.0'
 
 # ID used to uniquely identify this module
 GUID = 'd71ac268-d0f9-46a8-92a9-866e08f4cfc8'
