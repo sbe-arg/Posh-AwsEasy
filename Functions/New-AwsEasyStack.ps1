@@ -19,7 +19,7 @@ function New-EasyAwsStack {
 
     [string]$url, # r53 dns desired record
 
-    [string]$ami = "WINDOWS_2016_BASE", # make sure u know the naming here
+    [string]$amifilter = "WINDOWS_2016_BASE", # make sure u know the naming here
 
     [string]$instancetype = "t2.micro",
 
@@ -93,7 +93,6 @@ function New-EasyAwsStack {
         break
       }
       Write-Warning "Name set to $serverclass"
-      Write-Warning "AMI set to $ami"
       Write-Warning "Instance Type set to $instancetype"
       if($url -and $hostedzonename){
         Write-Warning "DnsNameset to $url to be added to $hostedzonename zone."
@@ -107,7 +106,11 @@ function New-EasyAwsStack {
       }
 
     # AMI
-      $ami_data = Get-EC2ImageByName -Name $ami -Region $region # use the latest ami for select os
+      $ami_data = Get-EC2Image -owner self -Region $region | where {$_.Name -like "$amifilter"} | sort CreationDate | select -Last 1
+      if($null -eq $ami_data){
+        $ami_data = Get-EC2ImageByName -Name $amifilter -Region $region # use the latest ami for select os
+      }
+      Write-Warning "AMI set to $($ami_data.Name)"
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) Locked ami $($ami_data.ImageId) $($ami_data.Name)." | out-file -append -encoding ascii $logfile
 
     # IAM
