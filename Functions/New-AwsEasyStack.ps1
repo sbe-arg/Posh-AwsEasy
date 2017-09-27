@@ -20,6 +20,7 @@ function New-EasyAwsStack {
     [string]$url, # r53 dns desired record
 
     [string]$amifilter = "WINDOWS_2016_BASE", # make sure u know the naming here
+    [string]$amiownerid = "self",
 
     [string]$instancetype = "t2.micro",
 
@@ -106,7 +107,7 @@ function New-EasyAwsStack {
       }
 
     # AMI
-      $ami_data = Get-EC2Image -owner self -Region $region | where {$_.Name -like "$amifilter"} | sort CreationDate | select -Last 1
+      $ami_data = Get-EC2Image -owner $amiownerid -Region $region | where {$_.Name -like "$amifilter"} | sort CreationDate | select -Last 1
       if($null -eq $ami_data){
         $ami_data = Get-EC2ImageByName -Name $amifilter -Region $region # use the latest ami for select os
       }
@@ -132,6 +133,7 @@ function New-EasyAwsStack {
       $iampolicyname = "iam-policy-" + $serverclass
       $iamiam = New-IAMRole -RoleName $iamrole -Description $serverclass -AssumeRolePolicyDocument $iam_doco -Region $region
       $iamiamiam = New-IAMInstanceProfile -InstanceProfileName $iamprofilerolename -Force -Region $region
+      Register-IAMRolePolicy -RoleName $iamrole -PolicyArn arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM -PassThru -Force -Region $region
       Add-IAMRoleToInstanceProfile -RoleName $iamrole -InstanceProfileName $iamprofilerolename -PassThru -Force -Region $region
       $iampolicy = Get-IAMAttachedRolePolicies -RoleName $iamrole -Region $region | where {$_.PolicyName -eq $iampolicyname}
       if($null -eq $iampolicy){
