@@ -9,6 +9,7 @@
     Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -addtag
     Invoke-AwsEasyTag -tagkey mytag -region $region -removetag
     Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -updatetag -updatetagvalue mynewvalue
+    Invoke-AwsEasyTag $arns ("$arn1",""$arn2") -tagkey mytag -region $region -tagvalue myvalue -addtag
 #>
 
 function Invoke-AwsEasyTag {
@@ -122,6 +123,12 @@ function Invoke-AwsEasyTag {
         Write-Warning "Adding tag:$tagkey value:$tagvalue on $(($r).ResourceARN)"
         $r.ResourceARN | Add-RGTResourceTag -Tag @{ "$tagkey"="$tagvalue" } -Force -Region $region -Verbose
         Start-Sleep -Seconds 1
+      }
+    }
+    elseif($arns -and $addtag -and $tagkey){
+      foreach($a in $arns){
+        Write-Warning "We will tag $a with key $tagkey value $tagvalue..."
+        $a | Add-RGTResourceTag -Tag @{ "$tagkey"="$tagvalue" } -Force -Region $region -Verbose
       }
     }
     elseif($addtag -and $cando -eq "not-allowed"){
