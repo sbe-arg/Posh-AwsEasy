@@ -7,7 +7,8 @@ function Remove-EasyAwsStack {
   )
   process{
     #asg
-      Update-ASAutoScalingGroup -AutoScalingGroupName asg-$serverclass -MaxSize 0 -MinSize 0 -DesiredCapacity 0 -Force -Region $region
+      Write-Output "Downscale asg-$serverclass to 0, terminating instances."
+      Update-ASAutoScalingGroup -AutoScalingGroupName asg-$serverclass -MaxSize 0 -MinSize 0 -DesiredCapacity 0 -PassThru -Force -Region $region
       start-sleep -s 180
       Remove-ASAutoScalingGroup -AutoScalingGroupName asg-$serverclass -PassThru -Force -Region $region
       start-sleep -s 10
