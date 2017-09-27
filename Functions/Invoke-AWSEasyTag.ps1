@@ -8,7 +8,7 @@
 .EXAMPLE
     Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -addtag
     Invoke-AwsEasyTag -tagkey mytag -region $region -removetag
-    Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -updatetag
+    Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -updatetag -updatetagvalue mynewvalue
 #>
 
 function Invoke-AwsEasyTag {
@@ -16,12 +16,13 @@ function Invoke-AwsEasyTag {
     [string]$region = (Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName),
     [string]$tagkey,
     [string]$tagvalue,
+    [string]$updatetagvalue,
     [switch]$addtag,
     [switch]$updatetag,
     [switch]$removetag,
     [switch]$showresources,
     [switch]$showmissingresources,
-    [string]$arn
+    [string[]]$arns
   )
 
   process{
@@ -31,7 +32,7 @@ function Invoke-AwsEasyTag {
       Write-Warning "You can't more than one statement add/remove/update."
       break
     }
-    elseif(-not $tagvalue -and $tagkey){
+    elseif(-not $tagvalue -and $tagkey -and -not $arns){
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "not-allowed"
       Write-Warning "Resources using key:$tagkey..."
@@ -44,7 +45,7 @@ function Invoke-AwsEasyTag {
         $totalresources | Get-AwsEasyTags | select ResourceARN,$tagkey | sort -descending $tagkey
       }
     }
-    elseif($tagkey -and $tagvalue -and $updatetag){
+    elseif($tagkey -and $tagvalue -and $updatetag -and -not $arns){
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Resources using key:$tagkey..."
@@ -52,7 +53,7 @@ function Invoke-AwsEasyTag {
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
-    elseif($tagkey -and $tagvalue -and $addtag){
+    elseif($tagkey -and $tagvalue -and $addtag -and -not $arns){
       # required for add
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
@@ -61,7 +62,7 @@ function Invoke-AwsEasyTag {
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
-    elseif(-not $addtag -and $tagkey -and $tagvalue){
+    elseif(-not $addtag -and $tagkey -and $tagvalue -and -not $arns){
       # required for delete/update
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
@@ -70,17 +71,16 @@ function Invoke-AwsEasyTag {
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
+    elseif($arns){
+      foreach($a in $arns){
+        Write-Warning "Using $a..."
+      }
+    }
     else{
       $cando = "not-allowed"
       Write-Warning "Getting resources..."
       $resources = Get-RGTResource -Region $region | Get-AwsEasyTags
       Write-Warning "Total resources found $(($resources).count)"
-      $tagged
-    }
-
-    if($arn){
-      $resources.ResourceARN = $arn
-      Write-Warning "Arn set to $($resources.ResourceARN)"
     }
 
     # UPDATE tag
@@ -92,9 +92,19 @@ function Invoke-AwsEasyTag {
       Write-Warning "Resources: $(($resources).count)"
       foreach($r in $resources){
         Write-Warning "Updating tag:$tagkey value:$tagvalue on $(($r).ResourceARN)"
-        $r.ResourceARN | Add-RGTResourceTag -Tag @{ "$tagkey"="$tagvalue" } -Force -Region $region -Verbose
+        $r.ResourceARN | Add-RGTResourceTag -Tag @{ "$tagkey"="$updatetagvalue" } -Force -Region $region -Verbose
         Start-Sleep -Seconds 1
       }
+    }
+    elseif($arns -and $updatetag -and $tagkey -and $updatetagvalue){
+      foreach($a in $arns){
+        Write-Warning "We will tag $a with key $tagkey value $updatetagvalue..."
+        $a | Add-RGTResourceTag -Tag @{ "$tagkey"="$updatetagvalue" } -Force -Region $region -Verbose
+      }
+    }
+    elseif($arns -and $updatetag -and $tagkey -and -not $updatetagvalue){
+      Write-Warning "You need -updatetagvalue newvalue"
+      break
     }
     elseif($addtag -and $cando -eq "not-allowed"){
       Write-Warning "Command -addtag requires -tagvalue -tagkey"
