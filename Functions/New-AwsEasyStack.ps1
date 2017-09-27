@@ -56,7 +56,7 @@ function New-EasyAwsStack {
         new-item -path c:\powershell-logs -itemtype directory
       }
       $logfile = 'c:\powershell-logs\output-log-CreateAStackFromPS.txt'
-      Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) Started process for stack $serverclass." | out-file -append -encoding ascii $logfile
+      Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) ------------------- Started process for stack $serverclass." | out-file -append -encoding ascii $logfile
 
     # REGION
       $getregion = Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName
@@ -273,8 +273,6 @@ function New-EasyAwsStack {
         Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) ERROR $asg_name not found." | out-file -append -encoding ascii $logfile
       }
 
-      Start-Sleep -s 10
-
     # R53
     if($url -and $hostedzonename){
       $HostedZoneId = Get-R53HostedZones | where {$_.Name -eq $hostedzonename}
@@ -297,6 +295,6 @@ function New-EasyAwsStack {
       Write-Output "$(Get-Date -Format  dd/MMM/yyyy:HH:mm:ss) $url added to $hostedzonename with endpoint $($elb_data.DNSName)." | out-file -append -encoding ascii $logfile
     }
 
-    Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) Finished." | out-file -append -encoding ascii $logfile
+    Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) ------------------- Finished." | out-file -append -encoding ascii $logfile
   } # close process
 } # close function
