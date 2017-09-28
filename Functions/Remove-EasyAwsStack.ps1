@@ -32,7 +32,7 @@ function Remove-EasyAwsStack {
       start-sleep -s 5
     #instance profile
       Remove-IAMInstanceProfile -InstanceProfileName iam-profile-$serverclass -PassThru -Force -Region $region
-      start-sleep -s 5
+      start-sleep -s 20
     #securitygroups
       Get-EC2SecurityGroup -Region $region | where {$_.GroupName -like "*$serverclass"} | Remove-EC2SecurityGroup -PassThru -Force -Region $region
   } # close process
