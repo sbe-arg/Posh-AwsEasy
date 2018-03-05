@@ -8,7 +8,7 @@
 .EXAMPLE
     Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -addtag
     Invoke-AwsEasyTag -tagkey mytag -region $region -removetag
-    Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -updatetag -updatetagvalue mynewvalue
+    Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -updatetag -newtagvalue mynewvalue
     Invoke-AwsEasyTag $arn ("$arn1",""$arn2") -tagkey mytag -region $region -tagvalue myvalue -addtag
 #>
 
@@ -17,34 +17,52 @@ function Invoke-AwsEasyTag {
     [string]$region = (Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName),
     [string]$tagkey,
     [string]$tagvalue,
-    [string]$updatetagvalue,
+    [string]$newtagvalue,
     [switch]$addtag,
     [switch]$updatetag,
     [switch]$removetag,
-    [switch]$showresources,
-    [switch]$showmissingresources,
+    [switch]$showallresources,
+    [switch]$showmissing,
+    [switch]$showtagged,
     [string]$arn
   )
 
   process{
     # GET resources
-    $totalresources = Get-RGTResource -Region $region
+    $allresources = Get-RGTResource -Region $region
+    Write-Warning "Found $(($allresources).count) AWS resources."
     if(($addtag -and $updatetag) -or ($removetag -and $updatetag) -or ($removetag -and $addtag) ){
       Write-Warning "You can't more than one statement add/remove/update."
       break
     }
-    elseif(-not $tagvalue -and $tagkey -and -not $arn){
+    elseif($tagkey -and -not $tagvalue -and -not $arn){
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "not-allowed"
       Write-Warning "Resources using key:$tagkey..."
       $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region
-      Write-Warning "Found $(($totalresources).count - ($resources).count) resources are missing tag:$tagkey"
-      Write-Warning "Show resources missing tag:$tagkey using -showmissingresources."
+      Write-Warning "Found $(($allresources).count - ($resources).count) resources are missing tag:$tagkey"
+      Write-Warning "Show resources missing tag:$tagkey using -showmissing."
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
-      if($showmissingresources){
-        $totalresources | Get-AwsEasyTags | select ResourceARN,$tagkey | sort -descending $tagkey
+      if($showmissing){
+        $missing = $allresources | Get-AwsEasyTags | where {-not $_.$tagkey}
+        $missing | select ResourceARN,$tagkey | sort -descending $tagkey
+        Write-Warning "Resources missing $tagkey tag $($missing.count)"
       }
+      if($showtagged){
+        $onlytagged = $resources | Get-AwsEasyTags | where {$_.$tagkey}
+        $onlytagged | select $tagkey,ResourceARN,Name | sort $tagkey,ResourceARN -descending
+        Write-Warning "Resources tagged with $tagkey tag $($onlytagged.count)"
+      }
+    }
+    elseif($tagkey -and $tagvalue -and -not $updatetag -and -not $addtag -and -not $arn){
+      # resources behind a tag
+      $tagged = Get-RGTTagValue -Key $tagkey -Region $region
+      $cando = "-not-allowed"
+      Write-Warning "Resources using $($tagkey):$($tagvalue)."
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTags | where-object { $_."$tagkey" -eq "$tagvalue" }
+      $resources | select $tagkey,ResourceARN,Name | sort $tagkey,ResourceARN -descending
+      Write-Warning "Found $(($resources).count) resources with $($tagkey):$($tagvalue)."
     }
     elseif($tagkey -and $tagvalue -and $updatetag -and -not $arn){
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
@@ -93,22 +111,22 @@ function Invoke-AwsEasyTag {
       Write-Warning "Resources: $(($resources).count)"
       foreach($r in $resources){
         Write-Warning "Updating tag:$tagkey value:$tagvalue on $(($r).ResourceARN)"
-        $r.ResourceARN | Add-RGTResourceTag -Tag @{ "$tagkey"="$updatetagvalue" } -Force -Region $region -Verbose
+        $r.ResourceARN | Add-RGTResourceTag -Tag @{ "$tagkey"="$newtagvalue" } -Force -Region $region -Verbose
         Start-Sleep -Seconds 1
       }
     }
-    elseif($arn -and $updatetag -and $tagkey -and $updatetagvalue){
+    elseif($arn -and $updatetag -and $tagkey -and $newtagvalue){
       foreach($a in $arn){
-        Write-Warning "We will tag $a with key $tagkey value $updatetagvalue..."
-        $a | Add-RGTResourceTag -Tag @{ "$tagkey"="$updatetagvalue" } -Force -Region $region -Verbose
+        Write-Warning "Tagging $a with key $tagkey value $newtagvalue..."
+        $a | Add-RGTResourceTag -Tag @{ "$tagkey"="$newtagvalue" } -Force -Region $region -Verbose
       }
     }
-    elseif($arn -and $updatetag -and $tagkey -and -not $updatetagvalue){
-      Write-Warning "You need -updatetagvalue newvalue"
+    elseif($arn -and $updatetag -and $tagkey -and -not $newtagvalue){
+      Write-Warning "You need -newtagvalue myNewTagValueHere"
       break
     }
-    elseif($addtag -and $cando -eq "not-allowed"){
-      Write-Warning "Command -addtag requires -tagvalue -tagkey"
+    elseif($updatetag -and $cando -eq "not-allowed"){
+      Write-Warning "Command -updatetag requires -tagvalue -tagkey"
       break
     }
 
@@ -127,7 +145,7 @@ function Invoke-AwsEasyTag {
     }
     elseif($arn -and $addtag -and $tagkey){
       foreach($a in $arn){
-        Write-Warning "We will tag $a with key $tagkey value $tagvalue..."
+        Write-Warning "Tagging $a with key $tagkey value $tagvalue..."
         $a | Add-RGTResourceTag -Tag @{ "$tagkey"="$tagvalue" } -Force -Region $region -Verbose
       }
     }
@@ -154,7 +172,7 @@ function Invoke-AwsEasyTag {
       break
     }
 
-    if($showresources){
+    if($showallresources){
       $resources.ResourceARN
     }
   }
