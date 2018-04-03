@@ -1,10 +1,9 @@
-﻿# http://docs.aws.amazon.com/powershell/latest/reference/index.html?page=AWS_Resource_Groups_Tagging_API_cmdlets.html&tocid=AWS_Resource_Groups_Tagging_API_cmdlets
-
 <#
 .SYNOPSIS
-    Tag all resoruces or remove/update a tag on all resources
+    Tag all resoruces or remove/update a tag on all resources.
 .DESCRIPTION
     Tagger for all resources no filter so be carefull.
+    http://docs.aws.amazon.com/powershell/latest/reference/index.html?page=AWS_Resource_Groups_Tagging_API_cmdlets.html&tocid=AWS_Resource_Groups_Tagging_API_cmdlets
 .EXAMPLE
     Invoke-AwsEasyTag -tagkey mytag -region $region -tagvalue myvalue -addtag
     Invoke-AwsEasyTag -tagkey mytag -region $region -removetag
@@ -14,7 +13,7 @@
 
 function Invoke-AwsEasyTag {
   param(
-    [string]$region = (Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName),
+    [string]$region = (Get-EC2InstanceMetadata -Category Region | Select-Object -ExpandProperty SystemName),
     [string]$tagkey,
     [string]$tagvalue,
     [string]$newtagvalue,
@@ -45,13 +44,13 @@ function Invoke-AwsEasyTag {
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
       if($showmissing){
-        $missing = $allresources | Get-AwsEasyTags | where {-not $_.$tagkey}
-        $missing | select ResourceARN,$tagkey | sort -descending $tagkey
+        $missing = $allresources | Get-AwsEasyTags | Where-Object {-not $_.$tagkey}
+        $missing | Select-Object ResourceARN,$tagkey | Sort-Object -descending $tagkey
         Write-Warning "Resources missing $tagkey tag $($missing.count)"
       }
       if($showtagged){
-        $onlytagged = $resources | Get-AwsEasyTags | where {$_.$tagkey}
-        $onlytagged | select $tagkey,ResourceARN,Name | sort $tagkey,ResourceARN -descending
+        $onlytagged = $resources | Get-AwsEasyTags | Where-Object {$_.$tagkey}
+        $onlytagged | Select-Object $tagkey,ResourceARN,Name | Sort-Object $tagkey,ResourceARN -descending
         Write-Warning "Resources tagged with $tagkey tag $($onlytagged.count)"
       }
     }
@@ -60,8 +59,8 @@ function Invoke-AwsEasyTag {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "-not-allowed"
       Write-Warning "Resources using $($tagkey):$($tagvalue)."
-      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTags | where-object { $_."$tagkey" -eq "$tagvalue" }
-      $resources | select $tagkey,ResourceARN,Name | sort $tagkey,ResourceARN -descending
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTags | Where-Object { $_."$tagkey" -eq "$tagvalue" }
+      $resources | Select-Object $tagkey,ResourceARN,Name | Sort-Object $tagkey,ResourceARN -descending
       Write-Warning "Found $(($resources).count) resources with $($tagkey):$($tagvalue)."
     }
     elseif($tagkey -and $tagvalue -and $updatetag -and -not $arn){

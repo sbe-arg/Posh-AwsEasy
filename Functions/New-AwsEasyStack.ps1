@@ -1,18 +1,23 @@
-# create full stack from single command
-# NOTES: atm is for port 80 ingress (world) to server instance port XXXXX... no 443 yet due cert restictions
-
 <#
+.SYNOPSIS
+    Create full stack from single command.
+.DESCRIPTION
+    N/A.
+.EXAMPLE
+    NOTES: atm is for port 80 ingress (world) to server instance port XXXXX... no 443 yet due cert restictions
 
-  $userdata = '{
-    $env:computername
-  }' # we need this for aditional ec2 config
+    $userdata = '{
+      $env:computername
+    }' # we need this for aditional ec2 config
 
-  $policyjson = '{
-  }' # put your verified json here
+    $policyjson = '{
+    }' # put your verified json here
 
+    New-AwsEasyStack -serverclass mystackname -url mydns.something.com -hostedzonename IDvaluesomething -vpcfilter myvpcnameORid -region Where-Object? -tagkey owner -tagvalue you!
 #>
 
-function New-EasyAwsStack {
+function New-AwsEasyStack {
+  [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="High")]
   param(
     [Parameter(Mandatory=$true)]
     [string]$serverclass, # name your build
@@ -59,7 +64,7 @@ function New-EasyAwsStack {
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) ------------------- Started process for stack $serverclass." | out-file -append -encoding ascii $logfile
 
     # REGION
-      $getregion = Get-EC2InstanceMetadata -Category Region | Select -ExpandProperty SystemName
+      $getregion = Get-EC2InstanceMetadata -Category Region | Select-Object -ExpandProperty SystemName
       if($null -ne $getregion){
         $region = $getregion
       }
@@ -71,9 +76,9 @@ function New-EasyAwsStack {
           foreach($t in $vpc.tags){
               $vpc | Add-Member -MemberType NoteProperty -Name $t.Key -Value $t.Value -ErrorAction SilentlyContinue -Force
           }
-          $vpc | select *
+          $vpc | Select-Object *
       }
-      $vpc = $getvpcs | where {$_.Name -like "*$vpcfilter*" -or $_.VpcId -eq $vpcfilter}
+      $vpc = $getvpcs | Where-Object {$_.Name -like "*$vpcfilter*" -or $_.VpcId -eq $vpcfilter}
       $vpc
       if($($vpc.count) -gt '1'){
         Write-Warning "Found $($vpc.count) VPCs."
@@ -107,7 +112,7 @@ function New-EasyAwsStack {
       }
 
     # AMI
-      $ami_data = Get-EC2Image -owner $amiownerid -Region $region | where {$_.Name -like "$amifilter"} | sort CreationDate | select -Last 1
+      $ami_data = Get-EC2Image -owner $amiownerid -Region $region | Where-Object {$_.Name -like "$amifilter"} | Sort-Object CreationDate | Select-Object -Last 1
       if($null -eq $ami_data){
         $ami_data = Get-EC2ImageByName -Name $amifilter -Region $region # use the latest ami for select os
       }
@@ -131,11 +136,11 @@ function New-EasyAwsStack {
 
       $iamprofilerolename = "iam-profile-" + $serverclass
       $iampolicyname = "iam-policy-" + $serverclass
-      $iamiam = New-IAMRole -RoleName $iamrole -Description $serverclass -AssumeRolePolicyDocument $iam_doco -Region $region
-      $iamiamiam = New-IAMInstanceProfile -InstanceProfileName $iamprofilerolename -Force -Region $region
+      New-IAMRole -RoleName $iamrole -Description $serverclass -AssumeRolePolicyDocument $iam_doco -Region $region
+      $iaminstanceprofile = New-IAMInstanceProfile -InstanceProfileName $iamprofilerolename -Force -Region $region
       Register-IAMRolePolicy -RoleName $iamrole -PolicyArn arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM -PassThru -Force -Region $region
       Add-IAMRoleToInstanceProfile -RoleName $iamrole -InstanceProfileName $iamprofilerolename -PassThru -Force -Region $region
-      $iampolicy = Get-IAMAttachedRolePolicies -RoleName $iamrole -Region $region | where {$_.PolicyName -eq $iampolicyname}
+      $iampolicy = Get-IAMAttachedRolePolicies -RoleName $iamrole -Region $region | Where-Object {$_.PolicyName -eq $iampolicyname}
       if($null -eq $iampolicy){
         # create
         Write-IAMRolePolicy -RoleName $iamrole -PolicyName $iampolicyname -PolicyDocument $policyjson -PassThru
@@ -150,7 +155,7 @@ function New-EasyAwsStack {
 
 
     # AZs
-      $availability_zones = Get-EC2AvailabilityZone -Region $region
+      # $availability_zones = Get-EC2AvailabilityZone -Region $region # not required (commented out)
 
     # SECURITY GROUP
       $sec_group_name_elb = "sec-group-elb-" + $serverclass
@@ -168,18 +173,18 @@ function New-EasyAwsStack {
       $ip1_ec2.ToPort = $instanceport
       $ip1_ec2.IpRanges.Add("0.0.0.0/0")
 
-      $sec_group_elb = Get-EC2SecurityGroup -Region $region | where {$_.GroupName -eq $sec_group_name_elb}
-      $sec_group_ec2 = Get-EC2SecurityGroup -Region $region | where {$_.GroupName -eq $sec_group_name_ec2}
+      $sec_group_elb = Get-EC2SecurityGroup -Region $region | Where-Object {$_.GroupName -eq $sec_group_name_elb}
+      $sec_group_ec2 = Get-EC2SecurityGroup -Region $region | Where-Object {$_.GroupName -eq $sec_group_name_ec2}
       if(!($sec_group_elb)){
         New-EC2SecurityGroup -Description $serverclass -GroupName $sec_group_name_elb -VpcId $vpc.VpcId -Region $region
         # get the sec group again in case it was created
-        $sec_group_elb = Get-EC2SecurityGroup -Region $region | where {$_.GroupName -eq $sec_group_name_elb}
+        $sec_group_elb = Get-EC2SecurityGroup -Region $region | Where-Object {$_.GroupName -eq $sec_group_name_elb}
         Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $sec_group_name_elb created." | out-file -append -encoding ascii $logfile
       }
       if(!($sec_group_ec2)){
         New-EC2SecurityGroup -Description $serverclass -GroupName $sec_group_name_ec2 -VpcId $vpc.VpcId -Region $region
         # get the sec group again in case it was created
-        $sec_group_ec2 = Get-EC2SecurityGroup -Region $region | where {$_.GroupName -eq $sec_group_name_ec2}
+        $sec_group_ec2 = Get-EC2SecurityGroup -Region $region | Where-Object {$_.GroupName -eq $sec_group_name_ec2}
         Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $sec_group_name_ec2 created." | out-file -append -encoding ascii $logfile
       }
       if($null -ne $sec_group_elb){
@@ -197,14 +202,14 @@ function New-EasyAwsStack {
       if($subnetsids){
         $subnetid = @()
         foreach($sub in $subnetsids){
-          $subnet = Get-EC2Subnet -Region $region | where {$_.VpcId -like $vpc.VpcId -and $_.SubnetId -like $sub}
+          $subnet = Get-EC2Subnet -Region $region | Where-Object {$_.VpcId -like $vpc.VpcId -and $_.SubnetId -like $sub}
           $subnid = $subnet.SubnetId
           $subnetid += $subnid.tostring()
         }
         $subnetid
       }
       else{
-        $subnet = Get-EC2Subnet -Region $region | where {$_.VpcId -like $vpc.VpcId}
+        $subnet = Get-EC2Subnet -Region $region | Where-Object {$_.VpcId -like $vpc.VpcId}
         $subnetid = $subnet.SubnetId
         $subnetid
       }
@@ -220,7 +225,7 @@ function New-EasyAwsStack {
         New-ELBLoadBalancer -LoadBalancerName $elb_name -SecurityGroup $sec_group_elb.GroupId -Subnet @( $subnetid ) -Listener $httpListener -Region $region
       }
       catch{
-        New-ELBLoadBalancer -LoadBalancerName $elb_name -SecurityGroup $sec_group_elb.GroupId -Subnet ($subnetid | select -Last 1)  -Listener $httpListener -Region $region
+        New-ELBLoadBalancer -LoadBalancerName $elb_name -SecurityGroup $sec_group_elb.GroupId -Subnet ($subnetid | Select-Object -Last 1)  -Listener $httpListener -Region $region
       }
       $elb_data = Get-ELBLoadBalancer -LoadBalancerName $elb_name -Region $region
       Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $elb_name created with AZ $($subnet.AvailabilityZone)." | out-file -append -encoding ascii $logfile
@@ -238,8 +243,8 @@ function New-EasyAwsStack {
         [System.Text.Encoding]::ascii.GetString($DecodeUserData)
         $DecodeUserData
       #>
-      New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $EncodedUserdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -InstanceMonitoring_Enabled $true -IamInstanceProfile $iamiamiam.Arn -Force -Region $region
-      Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created. With instance profile $($iamiamiam.Arn)" | out-file -append -encoding ascii $logfile
+      New-ASLaunchConfiguration -LaunchConfigurationName $lconfig_name -ImageId $ami_data.ImageId -UserData $EncodedUserdata -SecurityGroup $sec_group_elb.GroupId -InstanceType $lconfig_instance_type -InstanceMonitoring_Enabled $true -IamInstanceProfile $iaminstanceprofile.Arn -Force -Region $region
+      Write-Output "$(Get-Date -Format dd/MMM/yyyy:HH:mm:ss) $lconfig_name created. With instance profile $($iaminstanceprofile.Arn)" | out-file -append -encoding ascii $logfile
 
     # ASG
       $asg_tag0 = New-Object Amazon.AutoScaling.Model.Tag
@@ -275,7 +280,7 @@ function New-EasyAwsStack {
 
     # R53
     if($url -and $hostedzonename){
-      $HostedZoneId = Get-R53HostedZones | where {$_.Name -eq $hostedzonename}
+      $HostedZoneId = Get-R53HostedZones | Where-Object {$_.Name -eq $hostedzonename}
       $elb_data.DNSName
       $change = New-Object Amazon.Route53.Model.Change
       $change.Action = "CREATE"

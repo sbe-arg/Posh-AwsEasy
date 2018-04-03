@@ -1,0 +1,6 @@
+Name
+Get-AwsEasyTag
+Invoke-AwsEasyTag
+Invoke-AwsEasyTagS3
+New-AwsEasyStack
+Remove-AwsEasyStack

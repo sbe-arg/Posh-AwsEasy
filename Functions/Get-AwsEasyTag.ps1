@@ -1,4 +1,13 @@
-﻿function Get-AwsEasyTags {
+<#
+.SYNOPSIS
+    Generate item property from AWS Tag resource format.
+.DESCRIPTION
+    N/A.
+.EXAMPLE
+    Get-AwsEasyTag
+#>
+
+function Get-AwsEasyTag {
     param(
         [Parameter(ValueFromPipeline=$true)][PsObject[]]$InputObject,
         [string[]]$ExpandProperty=@("Tags")

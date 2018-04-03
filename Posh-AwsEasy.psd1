@@ -10,7 +10,7 @@
 RootModule = 'Posh-AwsEasy.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.12.0'
+ModuleVersion = '0.0.13.0'
 
 # ID used to uniquely identify this module
 GUID = 'd71ac268-d0f9-46a8-92a9-866e08f4cfc8'
@@ -64,7 +64,13 @@ Description = 'Aws Easy Posh Module'
 # NestedModules = @()
 
 # Functions to export from this module
-FunctionsToExport = '*'
+FunctionsToExport = @(
+  'Get-AwsEasyTag'
+  'Invoke-AwsEasyTag'
+  'Invoke-AwsEasyTagS3'
+  'New-AwsEasyStack'
+  'Remove-AwsEasyStack'
+)
 
 # Cmdlets to export from this module
 CmdletsToExport = @()

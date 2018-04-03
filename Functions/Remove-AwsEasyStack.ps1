@@ -1,7 +1,18 @@
-function Remove-EasyAwsStack {
+<#
+.SYNOPSIS
+    Get rid of all the stuff created by New-EasyAwsStack.
+.DESCRIPTION
+    N/A.
+.EXAMPLE
+    New-AwsEasyStack -serverclass mystackname -region where?
+#>
+
+function Remove-AwsEasyStack {
+  [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="High")]
   param(
     [Parameter(Mandatory=$true)]
     [string]$serverclass, # name your build
+
     [Parameter(Mandatory=$true)]
     [string]$region
   )
@@ -13,7 +24,7 @@ function Remove-EasyAwsStack {
       Remove-ASAutoScalingGroup -AutoScalingGroupName asg-$serverclass -PassThru -Force -Region $region
       start-sleep -s 10
     #elb
-      Get-ELBLoadBalancer -Region $region | where {$_.LoadbalancerName -like "*$serverclass"} | Remove-ELBLoadBalancer -PassThru -Force -Region $region
+      Get-ELBLoadBalancer -Region $region | Where-Object {$_.LoadbalancerName -like "*$serverclass"} | Remove-ELBLoadBalancer -PassThru -Force -Region $region
       start-sleep -s 10
     #launch config
       Remove-ASLaunchConfiguration -LaunchConfigurationName lconfig-$serverclass -PassThru -Force -Region $region
@@ -34,6 +45,6 @@ function Remove-EasyAwsStack {
       Remove-IAMInstanceProfile -InstanceProfileName iam-profile-$serverclass -PassThru -Force -Region $region
       start-sleep -s 20
     #securitygroups
-      Get-EC2SecurityGroup -Region $region | where {$_.GroupName -like "*$serverclass"} | Remove-EC2SecurityGroup -PassThru -Force -Region $region
+      Get-EC2SecurityGroup -Region $region | Where-Object {$_.GroupName -like "*$serverclass"} | Remove-EC2SecurityGroup -PassThru -Force -Region $region
   } # close process
 } # close function
