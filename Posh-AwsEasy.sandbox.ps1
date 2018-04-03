@@ -4,11 +4,8 @@ Import-Module $PSScriptRoot -Verbose
 cd $PSScriptRoot
 Get-Module PSScriptAnalyzer
 
-# script analyze functions?
-$questionsa = Read-Host "Run checks? (yes/no)"
-if($questionsa -like "y*"){
-    $checks = Get-ChildItem .\Tests\Module\*.ps1
-    foreach($check in $checks){
-        & $check.FullName
-    }
+Write-Warning "Running tests..."
+$checks = Get-ChildItem .\Tests\Module\*.ps1
+foreach($check in $checks){
+    & $check.FullName
 }
