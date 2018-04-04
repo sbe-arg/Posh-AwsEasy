@@ -1,5 +1,7 @@
-# Posh-AwsEasy
-Hand commands for AWS management.
+Posh-AwsEasy module
+===================
+
+[![Build status](https://ci.appveyor.com/api/projects/status/n4ohu9mub18kcegs?svg=true)](https://ci.appveyor.com/project/sbe-arg/posh-awseasy)
 
 # To test/debug:
 Download module -> run Posh-AwsEasy.sandbox.ps1 to load.
