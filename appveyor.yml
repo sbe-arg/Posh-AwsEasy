@@ -19,7 +19,15 @@ test_script:
   - ps: (New-Object 'System.Net.WebClient').UploadFile("https://ci.appveyor.com/api/testresults/nunit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\TestsResults.xml))
   - ps: if ($res.FailedCount -gt 0) { throw "$($res.FailedCount) tests failed."}
   - ps: |
-      import-module ../ -Verbose
-      try{ Write-Out "Publishing..." }
+      # Variables
+      $PSModulePath = "C:\Users\appveyor\Documents\WindowsPowerShell\Modules"
+      $ModuleName = $ENV:APPVEYOR_PROJECT_NAME
+      $ModulePath = Join-Path -Path $PSModulePath -ChildPath $ModuleName
+      # Create Module folder
+      if (-Not (Test-Path -Path "$ModulePath\$ENV:APPVEYOR_PROJECT_NAME\")) { New-Item -ItemType dir -Path "$ModulePath\" | Out-Null }
+      # Copy Module files
+      Copy-Item -Path $("$ENV:APPVEYOR_BUILD_FOLDER\*") -Recurse -Destination "$ModulePath\" -Force
+      # Publish module to powershellgallery repository
+      Import-Module $ModulePath\$ENV:APPVEYOR_PROJECT_NAME
+      try{ Publish-Module -Name $($ENV:APPVEYOR_PROJECT_NAME) -NuGetApiKey $ENV:NuGetApiKey }
       catch{ Write-Warning "Not publishing to PowerShellGallery. $($_.Exception.Message)" }
-      # Publish-Module -Name Posh-Datadog -NuGetApiKey $env:NuGetApiKey
