@@ -6,23 +6,13 @@ Posh-AwsEasy module
 # To test/debug:
 Download module -> run Posh-AwsEasy.sandbox.ps1 to load.
 
-### Step One: Install psget
+## Install via PowershellLibrary
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-(new-object Net.WebClient).DownloadString("https://raw.githubusercontent.com/psget/psget/master/GetPsGet.ps1") | iex
+PowerShellGet\Install-Module Posh-AwsEasy -Scope CurrentUser
 ```
-
-
-### Step Two: Install Posh-AwsEasy
+### Or install/update via PsGet
 ```powershell
-psget\Install-Module -ModuleUrl https://github.com/sbe-arg/Posh-AwsEasy/archive/master.zip
-```
-
-## Upgrading
-From time-to-time *Posh-AwsEasy* will be updated to include new features.
-To update *Posh-AwsEasy*, execute the following:
-```powershell
-psget\Install-Module -ModuleUrl https://github.com/sbe-arg/Posh-AwsEasy/archive/master.zip -Update
+psget\Install-Module -ModuleUrl https://github.com/sbe-arg/Posh-AwsEasy/archive/master.zip # -update
 ```
 
 ```powershell
