@@ -29,5 +29,5 @@ test_script:
       Copy-Item -Path $("$ENV:APPVEYOR_BUILD_FOLDER\*") -Recurse -Destination "$ModulePath\" -Force
       # Publish module to powershellgallery repository
       Import-Module $ModulePath\$ENV:APPVEYOR_PROJECT_NAME
-      try{ Publish-Module -Name $($ENV:APPVEYOR_PROJECT_NAME) -ProjectUri "https://github.com/sbe-arg/$ENV:APPVEYOR_PROJECT_NAME" -NuGetApiKey $ENV:NuGetApiKey }
+      try{ Publish-Module -Name $($ENV:APPVEYOR_PROJECT_NAME) -NuGetApiKey $ENV:NuGetApiKey }
       catch{ Write-Warning "Not publishing to PowerShellGallery. $($_.Exception.Message)" }
