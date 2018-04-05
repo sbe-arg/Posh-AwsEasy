@@ -10,7 +10,7 @@
 RootModule = 'Posh-AwsEasy.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.13'
+ModuleVersion = '0.0.14'
 
 # ID used to uniquely identify this module
 GUID = 'd71ac268-d0f9-46a8-92a9-866e08f4cfc8'
@@ -25,7 +25,7 @@ CompanyName = 'SBE'
 Copyright = '(c) 2017. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'Aws Easy Posh Module'
+Description = 'AWS anoying tasks made easy.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 # PowerShellVersion = ''
