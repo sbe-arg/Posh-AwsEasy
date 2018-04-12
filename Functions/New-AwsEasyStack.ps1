@@ -17,7 +17,7 @@
 #>
 
 function New-AwsEasyStack {
-  [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="High")]
+  [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="Low")]
   param(
     [Parameter(Mandatory=$true)]
     [string]$serverclass, # name your build

@@ -13,7 +13,7 @@
 #>
 
 function Edit-S3Object {
-  [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="High")]
+  [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact="Low")]
   param(
     [Parameter(Mandatory)][string]$BucketName,
     [Parameter(Mandatory)][string]$KeyPrefix,
