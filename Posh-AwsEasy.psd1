@@ -10,7 +10,7 @@
 RootModule = 'Posh-AwsEasy.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.14'
+ModuleVersion = '0.0.15'
 
 # ID used to uniquely identify this module
 GUID = 'd71ac268-d0f9-46a8-92a9-866e08f4cfc8'
@@ -65,6 +65,7 @@ Description = 'AWS anoying tasks made easy.'
 
 # Functions to export from this module
 FunctionsToExport = @(
+  'Edit-S3Object'
   'Get-AwsEasyTag'
   'Invoke-AwsEasyTag'
   'Invoke-AwsEasyTagS3'

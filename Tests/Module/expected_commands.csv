@@ -1,4 +1,5 @@
 Name
+Edit-S3Object
 Get-AwsEasyTag
 Invoke-AwsEasyTag
 Invoke-AwsEasyTagS3
