@@ -44,12 +44,12 @@ function Invoke-AwsEasyTag {
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
       if($showmissing){
-        $missing = $allresources | Get-AwsEasyTags | Where-Object {-not $_.$tagkey}
+        $missing = $allresources | Get-AwsEasyTag | Where-Object {-not $_.$tagkey}
         $missing | Select-Object ResourceARN,$tagkey | Sort-Object -descending $tagkey
         Write-Warning "Resources missing $tagkey tag $($missing.count)"
       }
       if($showtagged){
-        $onlytagged = $resources | Get-AwsEasyTags | Where-Object {$_.$tagkey}
+        $onlytagged = $resources | Get-AwsEasyTag | Where-Object {$_.$tagkey}
         $onlytagged | Select-Object $tagkey,ResourceARN,Name | Sort-Object $tagkey,ResourceARN -descending
         Write-Warning "Resources tagged with $tagkey tag $($onlytagged.count)"
       }
@@ -59,7 +59,7 @@ function Invoke-AwsEasyTag {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "-not-allowed"
       Write-Warning "Resources using $($tagkey):$($tagvalue)."
-      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTags | Where-Object { $_."$tagkey" -eq "$tagvalue" }
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTag | Where-Object { $_."$tagkey" -eq "$tagvalue" }
       $resources | Select-Object $tagkey,ResourceARN,Name | Sort-Object $tagkey,ResourceARN -descending
       Write-Warning "Found $(($resources).count) resources with $($tagkey):$($tagvalue)."
     }
@@ -67,7 +67,7 @@ function Invoke-AwsEasyTag {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Resources using key:$tagkey..."
-      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTags
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey" } -Region $region | Get-AwsEasyTag
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
@@ -76,7 +76,7 @@ function Invoke-AwsEasyTag {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Getting resources..."
-      $resources = Get-RGTResource -ResourceType $resourcetype -Region $region | Get-AwsEasyTags
+      $resources = Get-RGTResource -ResourceType $resourcetype -Region $region | Get-AwsEasyTag
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
@@ -85,7 +85,7 @@ function Invoke-AwsEasyTag {
       $tagged = Get-RGTTagValue -Key $tagkey -Region $region
       $cando = "allowed"
       Write-Warning "Resources using key:$tagkey value:$tagvalue..."
-      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values="$tagvalue" } -Region $region | Get-AwsEasyTags
+      $resources = Get-RGTResource -TagFilter @{ Key="$tagkey"; Values="$tagvalue" } -Region $region | Get-AwsEasyTag
       Write-Warning "Total resources found $(($resources).count) where found $(($tagged).count) $tagkey"
       $tagged
     }
@@ -97,7 +97,7 @@ function Invoke-AwsEasyTag {
     else{
       $cando = "not-allowed"
       Write-Warning "Getting resources..."
-      $resources = Get-RGTResource -Region $region | Get-AwsEasyTags
+      $resources = Get-RGTResource -Region $region | Get-AwsEasyTag
       Write-Warning "Total resources found $(($resources).count)"
     }
 
